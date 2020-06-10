@@ -1,6 +1,7 @@
 import logging
 import pathlib
 import time
+import json
 from argparse import ArgumentParser
 import threading
 import multiprocessing.dummy
@@ -15,20 +16,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from google.cloud import language
 
 import pyrugby.reddit
-
-# Setup the custom profanity dictionaries from the map
-# in pyrugby.reddit.constants
-CUSTOM_PROFANE_WORDS = {
-    w for sublist
-    in pyrugby.reddit.constants.CUSTOM_PROFANITIES.values()
-    for w in sublist
-}
-
-PROFANE_WORDS_ROOTS = {
-    w: root for root, words
-    in pyrugby.reddit.constants.CUSTOM_PROFANITIES.items()
-    for w in words
-}
 
 
 log = logging.getLogger(__name__)
@@ -74,6 +61,10 @@ def get_parser():
         'update', choices=['google', 'vader', 'profanity', 'flair'],
         nargs='+', help='Which fields to add/update'
     )
+    processer.add_argument(
+        '-p', '--profanities',
+        help='A JSON file containing profanities indexed by their "root"'
+    )
     return parser
 
 
@@ -89,9 +80,12 @@ def comment_list_to_pandas(comms, id_col='id'):
     return df
 
 
-def get_profanities(words):
+def get_profanities(words, custom_profanities=None):
     pf = ProfanityFilter()
-    pf.custom_profane_word_dictionaries = {'en': CUSTOM_PROFANE_WORDS}
+    if custom_profanities is not None:
+        pf.custom_profane_word_dictionaries = {
+            'en': custom_profanities
+        }
     swears = []
     for w in words:
         cw = pf.censor_word(w)
@@ -260,14 +254,32 @@ def add_google_sentiment(df):
     ))
 
 
-def add_profanities(df):
+def add_profanities(df, profanity_json=None):
+    # Set up the custom profanity dicts if needed
+    custom_profanities = None
+    profane_word_roots = {}
+    if profanity_json is not None:
+        with open(profanity_json, 'r') as pjson:
+            _custom_profanities = json.load(pjson)
+        custom_profanities = {
+            w for sublist
+            in _custom_profanities.values()
+            for w in sublist
+        }
+        profane_word_roots = {
+            w: root for root, words
+            in _custom_profanities.items()
+            for w in words
+        }
     log.info("Tokenizing comments")
     df['words'] = df.plaintext.progress_apply(nltk.word_tokenize)
     log.info("Detecting swear words")
-    df['swears'] = df.words.progress_apply(get_profanities)
+    df['swears'] = df.words.progress_apply(
+        get_profanities, custom_profanities=custom_profanities
+    )
     log.info("Calculating swear word roots")
     df['swears_root'] = df.swears.progress_apply(
-        lambda x: [PROFANE_WORDS_ROOTS[word] for word in x]
+        lambda x: [profane_word_roots.get(word, word) for word in x]
     )
     df['swears'] = df.swears.str.join(',')
     df['swears_root'] = df.swears_root.str.join(',')
@@ -296,10 +308,18 @@ def main(args):
     if args.command == 'scrape':
         scrape_and_clean(args.subid, args.url, args.outdir)
     elif args.command == 'process':
+        if 'profanity' in args.update and not args.profanities:
+            print(
+                'No profanities supplied falling back to'
+                ' "profanity_filter" defaults'
+            )
         incsv = pathlib.Path(args.input)
         df = pd.read_csv(incsv)
         for field in args.update:
-            PROCESS_FUNCMAP[field](df)
+            if field == 'profanity':
+                PROCESS_FUNCMAP[field](df, args.profanities)
+            else:
+                PROCESS_FUNCMAP[field](df)
         df.to_csv(
             incsv.with_name(
                 f'{incsv.stem}_{"_".join(args.update)}.csv'
