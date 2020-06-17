@@ -1,6 +1,6 @@
-from . import timeline
+from . import models
 
-from .timeline import Timeline
+from .models import Timeline
 
 __all__ = [
     'Timeline'

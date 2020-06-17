@@ -366,5 +366,14 @@ FLAIRS = {
     'wrcusa': {'club': None, 'country': 'usa', 'league': None},
     'wrcwal': {'club': None, 'country': 'wales', 'league': None},
     'wrcwr': {'club': None, 'country': None, 'league': None},
-    'zebre': {'club': 'zebre', 'country': 'italy', 'league': 'pro14'}
+    'zebre': {'club': 'zebre', 'country': 'italy', 'league': 'pro14'},
+    'therock': {
+        'club': 'the rock', 'country': 'canada',
+        'league': 'canadian rugby championship'
+    },
+    'runy': {'club': 'rugby united new york', 'country': 'usa', 'league': 'mlr'},
+    'nola': {'club': 'nola gold', 'country': 'usa', 'league': 'mlr'},
+    'dragons': {'club': 'dragons', 'country': 'wales', 'league': 'pro14'},
+    'super-rugby': {'club': None, 'country': None, 'league': 'super rugby'},
+    'irbrwc': {'club': None, 'country': None, 'league': None}
 }

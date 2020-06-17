@@ -180,7 +180,7 @@ def scrape_and_clean(subid, url=False, outdir=''):
     for comment in pushshift_comms:
         fid = pyrugby.reddit.get_flair_identifier(comment)
         comment['flair_id'] = fid
-        if fid not in pyrugby .reddit.FLAIRS:
+        if fid not in pyrugby.reddit.FLAIRS:
             log.warning(
                 'Unrecognised flair found! | %s / %s / %s',
                 comment["id"], comment.get("author_flair_css_class"),
